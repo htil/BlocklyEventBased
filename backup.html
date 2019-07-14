@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Blockly Demo: Fixed Blockly</title>
+    <script src="blockly_compressed.js"></script>
+    <script src="blocks_compressed.js"></script>
+    <script src="javascript_compressed.js"></script>
+    <script src="acorn_interpreter.js"></script>
+
+    <script src="en.js"></script>
+    <script>
+      var keyState = { W: { status: false, code: 87 } };
+
+      Blockly.Blocks["event_keypress"] = {
+        init: function() {
+          this.appendStatementInput("keypress_input")
+            .appendField("On Keypress")
+            .appendField(
+              new Blockly.FieldDropdown([["W", "W"], ["A", "A"]]),
+              "FIELDNAME"
+            );
+
+          this.setNextStatement(true, null);
+          this.setStyle("hat_blocks");
+          this.setColour(160);
+          this.setTooltip("Triggers keypress events");
+          this.setHelpUrl(
+            "http://www.w3schools.com/jsref/jsref_length_string.asp"
+          );
+        }
+      };
+
+      Blockly.JavaScript["event_keypress"] = function(block) {
+        // Search the text for a substring.
+
+        /*
+        var operator =
+          block.getFieldValue("END") == "FIRST" ? "indexOf" : "lastIndexOf";
+
+        var subString =
+          Blockly.JavaScript.valueToCode(
+            block,
+            "FIND",
+            Blockly.JavaScript.ORDER_NONE
+          ) || "''";
+
+        var text =
+          Blockly.JavaScript.valueToCode(
+            block,
+            "VALUE",
+            Blockly.JavaScript.ORDER_MEMBER
+          ) || "''";
+
+          */
+
+        //var nextBlock = block.getNextBlock();
+        var fieldVal = block.getFieldValue("FIELDNAME");
+        var currentState = keyState[fieldVal];
+        //console.log(currentState);
+        var code = Blockly.JavaScript.statementToCode(block, "keypress_input");
+        code = "keypress('W')";
+        return code;
+      };
+    </script>
+    <style>
+      body {
+        background-color: #fff;
+        font-family: sans-serif;
+      }
+      h1 {
+        font-weight: normal;
+        font-size: 140%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <a href="https://developers.google.com/blockly/">Blockly</a> &gt;
+      <a href="../index.html">Demos</a> &gt; Fixed Blockly
+    </h1>
+
+    <p>
+      This is a simple demo of injecting Blockly into a fixed-sized 'div'
+      element.
+    </p>
+
+    <p>
+      &rarr; More info on
+      <a
+        href="https://developers.google.com/blockly/guides/configure-blockly/web/fixed-size"
+        >injecting fixed-sized Blockly</a
+      >&hellip;
+    </p>
+
+    <button id="run">Run!</button>
+    <div id="blocklyDiv" style="height: 480px; width: 600px;"></div>
+
+    <xml id="toolbox" style="display: none">
+      <block type="controls_if"></block>
+      <block type="logic_compare"></block>
+      <block type="controls_repeat_ext"></block>
+      <block type="math_number">
+        <field name="NUM">123</field>
+      </block>
+      <block type="math_arithmetic"></block>
+      <block type="text"></block>
+      <block type="text_print"></block>
+      <block type="event_keypress"></block>
+    </xml>
+
+    <script>
+      function initApi(interpreter, scope) {
+        // Add an API function for the alert() block.
+        var wrapper = function(text) {
+          return alert(arguments.length ? text : "");
+        };
+
+        interpreter.setProperty(
+          scope,
+          "alert",
+          interpreter.createNativeFunction(wrapper)
+        );
+
+        // Add an API function for the prompt() block.
+        wrapper = function(text) {
+          return prompt(text);
+        };
+
+        interpreter.setProperty(
+          scope,
+          "prompt",
+          interpreter.createNativeFunction(wrapper)
+        );
+
+        var keyListener = key => {
+          document.addEventListener("keypress", e => {
+            alert(e.keyCode);
+          });
+        };
+        // Add an API function for the prompt() block.
+        wrapper = function(key) {
+          return keyListener(key);
+        };
+
+        interpreter.setProperty(
+          scope,
+          "keypress",
+          interpreter.createNativeFunction(wrapper)
+        );
+      }
+
+      document.getElementById("run").onclick = function() {
+        var code = Blockly.JavaScript.workspaceToCode(demoWorkspace);
+        console.log(code);
+        var myInterpreter = new Interpreter(code, initApi);
+        myInterpreter.run();
+      };
+
+      var demoWorkspace = Blockly.inject("blocklyDiv", {
+        media: "media/",
+        toolbox: document.getElementById("toolbox")
+      });
+    </script>
+  </body>
+</html>

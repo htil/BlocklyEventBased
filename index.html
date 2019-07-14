@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Blockly Demo: Fixed Blockly</title>
+    <script src="blockly_compressed.js"></script>
+    <script src="blocks_compressed.js"></script>
+    <script src="javascript_compressed.js"></script>
+    <script src="acorn_interpreter.js"></script>
+
+    <script src="en.js"></script>
+    <script>
+      var keyState = { W: { status: false, code: 87 } };
+
+      Blockly.Blocks["event_keypress"] = {
+        init: function() {
+          this.appendStatementInput("keypress_input")
+            .appendField("On Keypress")
+            .appendField(
+              new Blockly.FieldDropdown([["W", "W"], ["A", "A"]]),
+              "FIELDNAME"
+            );
+
+          this.setNextStatement(true, null);
+          this.setStyle("hat_blocks");
+          this.setColour(160);
+          this.setTooltip("Triggers keypress events");
+          this.setHelpUrl(
+            "http://www.w3schools.com/jsref/jsref_length_string.asp"
+          );
+        }
+      };
+
+      Blockly.JavaScript["event_keypress"] = function(block) {
+        // Search the text for a substring.
+        var fieldVal = block.getFieldValue("FIELDNAME");
+        var currentState = keyState[fieldVal];
+        var code = Blockly.JavaScript.statementToCode(block, "keypress_input");
+        code = "keypress('DummyData')";
+        return code;
+      };
+    </script>
+    <style>
+      body {
+        background-color: #fff;
+        font-family: sans-serif;
+      }
+      h1 {
+        font-weight: normal;
+        font-size: 140%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <a href="https://developers.google.com/blockly/">Blockly</a> &gt;
+      <a href="../index.html">Demos</a> &gt; Fixed Blockly
+    </h1>
+
+    <p>
+      This is a simple demo of injecting Blockly into a fixed-sized 'div'
+      element.
+    </p>
+
+    <p>
+      &rarr; More info on
+      <a
+        href="https://developers.google.com/blockly/guides/configure-blockly/web/fixed-size"
+        >injecting fixed-sized Blockly</a
+      >&hellip;
+    </p>
+
+    <button id="run">Run!</button>
+    <div id="blocklyDiv" style="height: 480px; width: 600px;"></div>
+
+    <xml id="toolbox" style="display: none">
+      <block type="controls_if"></block>
+      <block type="logic_compare"></block>
+      <block type="controls_repeat_ext"></block>
+      <block type="math_number">
+        <field name="NUM">123</field>
+      </block>
+      <block type="controls_whileUntil"></block>
+      <block type="logic_boolean"></block>
+      <block type="math_arithmetic"></block>
+      <block type="text"></block>
+      <block type="text_print"></block>
+      <block type="event_keypress"></block>
+    </xml>
+
+    <script>
+      var Interp = function(code) {
+        this.code = code;
+
+        this.initApi = (interpreter, scope) => {
+          // Add an API function for the alert() block.
+          var wrapper = function(text) {
+            var t = new Date().getTime();
+            return console.log(t);
+          };
+
+          interpreter.setProperty(
+            scope,
+            "alert",
+            interpreter.createNativeFunction(wrapper)
+          );
+
+          // Add an API function for the prompt() block.
+          wrapper = function(text) {
+            return prompt(text);
+          };
+
+          interpreter.setProperty(
+            scope,
+            "prompt",
+            interpreter.createNativeFunction(wrapper)
+          );
+
+          var keyListener = key => {
+            //document.addEventListener("keypress", e => {
+            console.log("Keypress: ", key);
+            //});
+          };
+          // Add an API function for the prompt() block.
+          wrapper = function(key) {
+            return keyListener(key);
+          };
+
+          interpreter.setProperty(
+            scope,
+            "keypress",
+            interpreter.createNativeFunction(wrapper)
+          );
+        };
+
+        this.getInterpreter = () => {
+          return new Interpreter(this.code, this.initApi);
+        };
+      };
+
+      let CodeManager = function(code) {
+        this.code = code;
+        this.eventCode = "";
+        this.nonEventCode = "";
+
+        this.parseCode = () => {
+          var topBlocks = Blockly.mainWorkspace.getTopBlocks(true);
+          var type, code;
+
+          for (block in topBlocks) {
+            type = this.getBlockType(topBlocks[block]);
+            code = this.getBlockCode(topBlocks[block]);
+
+            if (type == "event") {
+              this.eventCode += code;
+            } else {
+              this.nonEventCode += code;
+            }
+          }
+
+          //console.log("Event: ", this.eventCode);
+          //console.log("Non Event: ", this.nonEventCode);
+        };
+
+        this.handelEventCode = () => {};
+
+        this.getBlockType = block => {
+          return block.type.split("_")[0];
+        };
+
+        this.getBlockCode = block => {
+          return Blockly.JavaScript.blockToCode(block);
+        };
+
+        this.getEventCode = () => {
+          return this.eventCode;
+        };
+
+        this.getNonEventCode = () => {
+          return this.nonEventCode;
+        };
+
+        this.parseCode();
+      };
+
+      let InterpManager = function() {
+        this.interpreters = [];
+        this.currentInterpreterID = 0;
+        this.lastInterpreterID = 0;
+        this.delay = 10;
+        this.isWaiting = false;
+
+        this.addInterpreter = (interpreter, type, code) => {
+          var index = this.interpreters.length;
+          var obj = {
+            id: index,
+            interp: interpreter,
+            isDone: false,
+            type,
+            code
+          };
+          this.interpreters.push(obj);
+        };
+
+        this.getEventCode = () => {
+          return this.code;
+        };
+
+        this.getInterpreters = () => {
+          return this.interpreters;
+        };
+
+        this.getInterpByID = id => {
+          return this.interpreters[id].interp;
+        };
+
+        this.setCurrentInterpreter = id => {
+          if (id != 0) this.setLastInterpreter(0);
+          else this.setLastInterpreter(this.currentInterpreterID);
+          this.currentInterpreterID = id;
+        };
+
+        this.setLastInterpreter = id => {
+          this.lastInterpreterID = id;
+        };
+
+        this.setInterpreter = (id, interpreter) => {
+          this.interpreters[id].interp = interpreter;
+          this.interpreters[id].isDone = false;
+        };
+
+        this.updateInterpreterStatus = (id, prop, state) => {
+          this.interpreters[id][prop] = state;
+        };
+
+        this.getInterpStatus = (id, prop) => {
+          return this.interpreters[id][prop];
+        };
+
+        this.run = () => {
+          var currentInterp = this.getInterpByID(this.currentInterpreterID);
+          if (currentInterp.step()) {
+            this.isWaiting = false;
+            // Toggle interpreters here to alternate between event code and nonevent code?
+
+            var isLastInterpDone = this.getInterpStatus(
+              this.lastInterpreterID,
+              "isDone"
+            );
+
+            if (!isLastInterpDone) {
+              this.setCurrentInterpreter(this.lastInterpreterID);
+            }
+
+            setTimeout(this.run, this.delay);
+          } else {
+            // Race condition when setting event to currentinterp
+            this.updateInterpreterStatus(
+              this.currentInterpreterID,
+              "isDone",
+              true
+            );
+
+            var isLastInterpDone = this.getInterpStatus(
+              this.lastInterpreterID,
+              "isDone"
+            );
+
+            if (!isLastInterpDone) {
+              this.setCurrentInterpreter(this.lastInterpreterID);
+              setTimeout(this.run, this.delay);
+            }
+
+            this.isWaiting = true;
+          }
+        };
+      };
+
+      var codeManager, interpManager, nonEventInterpreter;
+      var init = false;
+
+      document.addEventListener("keypress", e => {
+        if (!init) return;
+
+        // Check to see if this[id] event interpreter is already complete. If so reload code, set appropritate ID, and run again.
+        var id = 1;
+        //var isInterpDone = interpManager.getInterpStatus(id, "isDone");
+
+        //if (isInterpDone) {
+
+        var eventCode = interpManager.getInterpStatus(id, "code");
+        var eventInterpreter = new Interp(eventCode).getInterpreter();
+        interpManager.setInterpreter(id, eventInterpreter);
+        interpManager.setCurrentInterpreter(id);
+
+        //interpManager.setCurrentInterpreter(id);
+        //  } else {
+        //interpManager.setCurrentInterpreter(id);
+        // }
+
+        if (interpManager.isWaiting) {
+          interpManager.run();
+        }
+      });
+
+      let loadDemoCode = () => {
+        var demoCode =
+          '<xml><block type="controls_repeat_ext" id="pyb8t*%-Gw5KcGQ8ubqn" x="99" y="121"><value name="TIMES"><block type="math_number" id="Z)dQ;UInyY`2.GDSNCW8"><field name="NUM">3000</field></block></value><statement name="DO"><block type="text_print" id="8Ur;|g#O_R]x#!)1HD|p"><value name="TEXT"><block type="logic_boolean" id="RajHJ$.2}c5!y5~;wX8C"><field name="BOOL">TRUE</field></block></value></block></statement></block><block type="event_keypress" id="(^bu~$ZSg_GsF-v~Lkz[" x="55" y="279"><field name="FIELDNAME">W</field><statement name="keypress_input"><block type="text_print" id="J9fGb=9),F$4V)Y^DLg@"><value name="TEXT"><block type="logic_boolean" id="+lP/=@BeFw@JHi(g`O+P"><field name="BOOL">TRUE</field></block></value></block></statement></block></xml>';
+        dom = Blockly.Xml.textToDom(demoCode);
+        Blockly.Xml.domToWorkspace(dom, demoWorkspace);
+      };
+
+      document.getElementById("run").onclick = function() {
+        init = true;
+
+        var code = Blockly.JavaScript.workspaceToCode(demoWorkspace);
+        var xml = Blockly.Xml.workspaceToDom(demoWorkspace);
+
+        // Seperate Event Code
+        codeManager = new CodeManager(code);
+        var eventCode = codeManager.getEventCode(); // Object holding code for all relevant events?
+        var nonEventCode = codeManager.getNonEventCode();
+
+        // Create Interpreter Manager
+        interpManager = new InterpManager();
+
+        // Add  interpreter for non-event code
+        nonEventInterpreter = new Interp(nonEventCode).getInterpreter();
+        interpManager.addInterpreter(
+          nonEventInterpreter,
+          "NON_EVENT",
+          nonEventCode
+        );
+
+        // Add interpreter for event code // this may be handle in function or class eventually
+        eventInterpreter = new Interp(eventCode).getInterpreter(); // should this be unique to a specific event?
+        interpManager.addInterpreter(eventInterpreter, "EVENT", eventCode);
+
+        interpManager.run();
+      };
+
+      var demoWorkspace = Blockly.inject("blocklyDiv", {
+        media: "media/",
+        toolbox: document.getElementById("toolbox")
+      });
+
+      loadDemoCode();
+    </script>
+  </body>
+</html>
