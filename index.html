@@ -17,7 +17,7 @@
           this.appendStatementInput("keypress_input")
             .appendField("On Keypress")
             .appendField(
-              new Blockly.FieldDropdown([["W", "W"], ["A", "A"]]),
+              new Blockly.FieldDropdown([["W", "119"], ["A", "A"]]),
               "FIELDNAME"
             );
 
@@ -36,7 +36,7 @@
         var fieldVal = block.getFieldValue("FIELDNAME");
         var currentState = keyState[fieldVal];
         var code = Blockly.JavaScript.statementToCode(block, "keypress_input");
-        code = "keypress('DummyData')";
+        //code = "keypress('DummyData')";
         return code;
       };
     </script>
@@ -96,7 +96,7 @@
           // Add an API function for the alert() block.
           var wrapper = function(text) {
             var t = new Date().getTime();
-            return console.log(t);
+            return console.log(text);
           };
 
           interpreter.setProperty(
@@ -117,10 +117,9 @@
           );
 
           var keyListener = key => {
-            //document.addEventListener("keypress", e => {
             console.log("Keypress: ", key);
-            //});
           };
+
           // Add an API function for the prompt() block.
           wrapper = function(key) {
             return keyListener(key);
@@ -140,26 +139,37 @@
 
       let CodeManager = function(code) {
         this.code = code;
-        this.eventCode = "";
+        this.eventCode = {};
         this.nonEventCode = "";
+        this.eventCodeMap = { "119": "W", "97": "A" };
 
         this.parseCode = () => {
           var topBlocks = Blockly.mainWorkspace.getTopBlocks(true);
           var type, code;
 
           for (block in topBlocks) {
-            type = this.getBlockType(topBlocks[block]);
-            code = this.getBlockCode(topBlocks[block]);
+            var curBlock = topBlocks[block];
+            type = this.getBlockType(curBlock);
+            code = this.getBlockCode(curBlock);
+            console.log(curBlock);
 
             if (type == "event") {
-              this.eventCode += code;
+              var key = this.getEventKey(curBlock);
+              this.eventCode[key] = code;
             } else {
               this.nonEventCode += code;
             }
           }
+        };
 
-          //console.log("Event: ", this.eventCode);
-          //console.log("Non Event: ", this.nonEventCode);
+        this.getEventKey = block => {
+          console.log(block.inputList[0].fieldRow[1].value_);
+          return block.inputList[0].fieldRow[1].value_;
+        };
+
+        this.getEventCode = key => {
+          var _key = this.eventCodeMap[key];
+          return this.eventCode[_key];
         };
 
         this.handelEventCode = () => {};
@@ -170,10 +180,6 @@
 
         this.getBlockCode = block => {
           return Blockly.JavaScript.blockToCode(block);
-        };
-
-        this.getEventCode = () => {
-          return this.eventCode;
         };
 
         this.getNonEventCode = () => {
@@ -282,21 +288,20 @@
       document.addEventListener("keypress", e => {
         if (!init) return;
 
+        var { keyCode, key } = e;
+
+        var targetKey = key.toUpperCase();
+        console.log(keyCode);
+
         // Check to see if this[id] event interpreter is already complete. If so reload code, set appropritate ID, and run again.
         var id = 1;
-        //var isInterpDone = interpManager.getInterpStatus(id, "isDone");
+        //var eventCode = interpManager.getInterpStatus(id, "code"); // get code from codeManager base on keypress event
 
-        //if (isInterpDone) {
+        var eventCode = codeManager.getEventCode(keyCode);
 
-        var eventCode = interpManager.getInterpStatus(id, "code");
         var eventInterpreter = new Interp(eventCode).getInterpreter();
         interpManager.setInterpreter(id, eventInterpreter);
         interpManager.setCurrentInterpreter(id);
-
-        //interpManager.setCurrentInterpreter(id);
-        //  } else {
-        //interpManager.setCurrentInterpreter(id);
-        // }
 
         if (interpManager.isWaiting) {
           interpManager.run();
@@ -333,8 +338,9 @@
         );
 
         // Add interpreter for event code // this may be handle in function or class eventually
-        eventInterpreter = new Interp(eventCode).getInterpreter(); // should this be unique to a specific event?
-        interpManager.addInterpreter(eventInterpreter, "EVENT", eventCode);
+        // empty interpreter for now
+        eventInterpreter = new Interp("").getInterpreter(); // should this be unique to a specific event?
+        interpManager.addInterpreter(eventInterpreter, "EVENT", "");
 
         interpManager.run();
       };
